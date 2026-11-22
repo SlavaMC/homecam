@@ -46,7 +46,7 @@ services:
       SERVER_IP: ${SERVER_IP}
       WEBRTC_PORT: ${WEBRTC_PORT:-8555}
     volumes:
-      - ./docker/go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+      - ./docker/go2rtc/go2rtc.yaml:/config/go2rtc.yaml
     ports:
       - "${WEBRTC_PORT:-8555}:8555/tcp"
       - "${WEBRTC_PORT:-8555}:8555/udp"
