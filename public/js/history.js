@@ -241,7 +241,7 @@
         const x = (ms) => (ms - range.from) / span * w;
         const css = getComputedStyle(document.body);
         // ticks
-        c.fillStyle = css.getPropertyValue('--muted') || '#888';
+        c.fillStyle = css.getPropertyValue('--muted').trim() || '#888';
         c.font = '11px system-ui, sans-serif';
         const steps = [60e3, 300e3, 600e3, 1800e3, 3600e3, 3 * 3600e3, 6 * 3600e3, 12 * 3600e3, 86400e3];
         const step = steps.find((s) => span / s <= w / 70) || 86400e3;
@@ -262,7 +262,7 @@
             const y = HEAD + i * ROW;
             c.fillStyle = 'rgba(127,127,127,.18)';
             c.fillRect(0, y, w, ROW - 3);
-            c.fillStyle = css.getPropertyValue('--accent') || '#3b82f6';
+            c.fillStyle = css.getPropertyValue('--accent').trim() || '#3b82f6';
             for (const f of p.frags) c.fillRect(x(f.pdt), y, Math.max(1, f.dur * 1000 / span * w + 0.5), ROW - 3);
         });
         // cursor

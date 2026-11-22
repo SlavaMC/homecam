@@ -203,12 +203,13 @@ class Recorder extends Command
 
     private function watchdog(): void
     {
-        foreach ($this->procs as $id => &$p) {
+        foreach (array_keys($this->procs) as $id) {
+            $p = &$this->procs[$id];
             $st = proc_get_status($p['proc']);
             if (!$st['running']) {
                 $tail = $this->logTail($p['log']);
                 proc_close($p['proc']);
-                unset($this->procs[$id]);
+                unset($p, $this->procs[$id]);
                 $this->scheduleRestart($id, 'ffmpeg завершился (код ' . $st['exitcode'] . '): ' . $tail);
                 continue;
             }
@@ -229,11 +230,12 @@ class Recorder extends Command
             if ($since > 30) {
                 $this->warn("camera #{$id}: no data for {$since}s, restarting ffmpeg");
                 $tail = $this->logTail($p['log']);
+                unset($p);
                 $this->stopProcess($id);
                 $this->scheduleRestart($id, 'нет данных от камеры ' . $since . ' с. ' . $tail);
             }
+            unset($p);
         }
-        unset($p);
     }
 
     /** @return array<string,bool> files currently being written */

@@ -21,7 +21,7 @@ Route::get('/internal/live-auth', [MediaController::class, 'liveAuth']);
 Route::middleware('viewer')->group(function () {
     Route::get('/', [ViewController::class, 'live']);
     Route::get('/history', [ViewController::class, 'history']);
-    Route::get('/api/history/{camera}.m3u8', [MediaController::class, 'playlist']);
+    Route::get('/api/history/{camera}.m3u8', [MediaController::class, 'playlist'])->whereNumber('camera');
     Route::get('/api/coverage', [MediaController::class, 'coverage']);
     Route::get('/rec/{path}', [MediaController::class, 'segment'])->where('path', '.+\.ts');
     Route::get('/exports', [ExportController::class, 'index']);
