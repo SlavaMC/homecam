@@ -1,0 +1,14 @@
+# Live view relay. Streams are added at runtime by the worker (Laravel) via the API.
+# API is reachable only inside the docker network; the browser talks to it through nginx (with auth).
+api:
+  listen: ":1984"
+  origin: "*"
+rtsp:
+  listen: ""
+webrtc:
+  listen: ":8555"
+  candidates:
+    - ${SERVER_IP}:${WEBRTC_PORT}
+    - stun:8555
+log:
+  level: warn

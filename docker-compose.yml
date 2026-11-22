@@ -1,0 +1,52 @@
+name: homecam
+
+x-app: &app
+  build: .
+  image: homecam:latest
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    TZ: ${TZ:-Asia/Vladivostok}
+    APP_NAME: Homecam
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_LOCALE: ru
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: info
+    SESSION_DRIVER: database
+    SESSION_LIFETIME: "43200"
+    CACHE_STORE: file
+    QUEUE_CONNECTION: database
+    DB_CONNECTION: sqlite
+    DB_DATABASE: /state/homecam.sqlite
+    HOMECAM_DATA: /data
+    GO2RTC_URL: http://go2rtc:1984
+  volumes:
+    - ./state:/state
+    - ${SERVER_CAM_DATA_DIR:-./camdata}:/data
+
+services:
+  app:
+    <<: *app
+    command: ["supervisord", "-c", "/etc/supervisor/app.conf"]
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on: [go2rtc]
+
+  worker:
+    <<: *app
+    command: ["supervisord", "-c", "/etc/supervisor/worker.conf"]
+    depends_on: [app]
+
+  go2rtc:
+    image: alexxit/go2rtc:1.9.9
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Vladivostok}
+      SERVER_IP: ${SERVER_IP}
+      WEBRTC_PORT: ${WEBRTC_PORT:-8555}
+    volumes:
+      - ./docker/go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    ports:
+      - "${WEBRTC_PORT:-8555}:8555/tcp"
+      - "${WEBRTC_PORT:-8555}:8555/udp"

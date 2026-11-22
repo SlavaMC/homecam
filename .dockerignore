@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.git
+state
+camdata
+vendor
+node_modules
+tools
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
