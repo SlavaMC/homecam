@@ -45,6 +45,7 @@ services:
       TZ: ${TZ:-Asia/Vladivostok}
       SERVER_IP: ${SERVER_IP}
       WEBRTC_PORT: ${WEBRTC_PORT:-8555}
+      WEBRTC_PUBLIC: ${WEBRTC_PUBLIC:-${SERVER_IP}}
     volumes:
       - ./docker/go2rtc/go2rtc.yaml:/config/go2rtc.yaml
     ports:

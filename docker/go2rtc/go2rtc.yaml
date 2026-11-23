@@ -9,6 +9,7 @@ webrtc:
   listen: ":8555"
   candidates:
     - ${SERVER_IP}:${WEBRTC_PORT}
+    - ${WEBRTC_PUBLIC}:${WEBRTC_PORT}
     - stun:8555
 log:
   level: warn
