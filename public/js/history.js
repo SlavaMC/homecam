@@ -139,7 +139,7 @@
         players.forEach((p) => grid.appendChild(p.el));
         grid.dataset.count = players.length;
         bar.hidden = false;
-        canvas.hidden = false;
+        $('timelineWrap').hidden = false;
         setPlaying(false);
         updateSel();
         const q = new URLSearchParams({from: Math.floor(a / 1000), to: Math.floor(b / 1000), cams: cams.map((c) => c.id).join(',')});
@@ -278,6 +278,22 @@
     canvas.addEventListener('pointerdown', (e) => { if (!range) return; dragging = true; canvas.setPointerCapture(e.pointerId); seekFromEvent(e); });
     canvas.addEventListener('pointermove', (e) => { if (dragging) seekFromEvent(e); });
     canvas.addEventListener('pointerup', () => { dragging = false; });
+
+    // ---------- shift the interval by its own length ----------
+    function shiftRange(dir) {
+        let a = fromInput(fromEl.value), b = fromInput(toEl.value);
+        if (!(a < b)) return;
+        const span = b - a;
+        a += dir * span; b += dir * span;
+        const now = Date.now();
+        if (b > now) { b = now; a = now - span; }
+        if (LIMIT.from && a < LIMIT.from * 1000) { a = LIMIT.from * 1000; b = a + span; }
+        if (LIMIT.to && b > LIMIT.to * 1000) { b = LIMIT.to * 1000; a = b - span; }
+        fromEl.value = toInput(a); toEl.value = toInput(b);
+        load();
+    }
+    $('prevRange').addEventListener('click', () => shiftRange(-1));
+    $('nextRange').addEventListener('click', () => shiftRange(1));
 
     // ---------- export ----------
     function updateSel() {

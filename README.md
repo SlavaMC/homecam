@@ -53,7 +53,7 @@ go2rtc (ретранслятор живого видео в WebRTC/MSE).
 
 1. Создать бота у @BotFather, получить токен.
 2. Добавить бота в группу, узнать `chat_id` группы (например, через `https://api.telegram.org/bot<TOKEN>/getUpdates` после сообщения в группе; у групп он отрицательный).
-3. Вписать `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` в `.env`, перезапустить (`python tools/deploy.py --no-build`).
+3. Вписать `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` в `.env` (если api.telegram.org недоступен напрямую, добавить `TELEGRAM_PROXY=http://user:pass@host:3128` или `socks5h://user:pass@host:1080`), перезапустить (`python tools/deploy.py --no-build`).
 4. «Настройки» → «Отправить тестовое сообщение».
 
 Камера считается недоступной, если от неё нет видео дольше `CAMERA_OFFLINE_AFTER` секунд.

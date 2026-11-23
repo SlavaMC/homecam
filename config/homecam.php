@@ -18,6 +18,8 @@ return [
 
     'telegram_bot_token' => env('TELEGRAM_BOT_TOKEN'),
     'telegram_chat_id' => env('TELEGRAM_CHAT_ID'),
+    // e.g. http://user:pass@host:3128 or socks5h://user:pass@host:1080 (empty = direct)
+    'telegram_proxy' => env('TELEGRAM_PROXY'),
 
     'go2rtc_url' => env('GO2RTC_URL', 'http://go2rtc:1984'),
 

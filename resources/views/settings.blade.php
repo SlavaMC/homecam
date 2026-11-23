@@ -24,7 +24,7 @@
         @csrf
         <h3>Оповещения в Telegram</h3>
         @if($telegram)
-            <p class="muted small">Бот настроен. Сообщения о пропадании и восстановлении камер уходят в группу.</p>
+            <p class="muted small">Бот настроен. Сообщения о пропадании и восстановлении камер уходят в группу{{ config('homecam.telegram_proxy') ? ' через прокси из TELEGRAM_PROXY' : '' }}.</p>
         @else
             <p class="muted small">Бот не настроен. Пропишите <code>TELEGRAM_BOT_TOKEN</code> и <code>TELEGRAM_CHAT_ID</code> в файле <code>.env</code> и перезапустите систему.</p>
         @endif

@@ -19,7 +19,11 @@ class Telegram
             return 'Telegram не настроен: заполните TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID в .env';
         }
         try {
-            $r = Http::timeout(15)->asForm()->post(
+            $http = Http::timeout(20)->asForm();
+            if ($proxy = (string) config('homecam.telegram_proxy')) {
+                $http = $http->withOptions(['proxy' => $proxy]);
+            }
+            $r = $http->post(
                 'https://api.telegram.org/bot' . config('homecam.telegram_bot_token') . '/sendMessage',
                 [
                     'chat_id' => config('homecam.telegram_chat_id'),
@@ -35,8 +39,10 @@ class Telegram
             }
             return null;
         } catch (\Throwable $e) {
-            Log::warning('Telegram send failed: ' . $e->getMessage());
-            return $e->getMessage();
+            // never leak the bot token into logs or the UI
+            $msg = str_replace((string) config('homecam.telegram_bot_token'), '***', $e->getMessage());
+            Log::warning('Telegram send failed: ' . $msg);
+            return $msg;
         }
     }
 }

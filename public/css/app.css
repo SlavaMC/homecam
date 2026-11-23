@@ -103,9 +103,12 @@ video-stream .info { font-size: 11px; opacity: .6; padding: 6px 8px !important; 
 
 /* history */
 .player-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 10px 10px 0 0; padding: 8px; }
-.player-bar[hidden], .timeline[hidden] { display: none; }
+.player-bar[hidden], .timeline-wrap[hidden] { display: none; }
+.timeline-wrap { display: flex; align-items: stretch; background: var(--panel); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 10px 10px; margin-bottom: 10px; overflow: hidden; }
+.timeline-wrap .shift { border: 0; border-radius: 0; padding: 0 12px; background: rgba(127,127,127,.08); font-size: 13px; }
+.timeline-wrap .shift:hover { background: rgba(127,127,127,.2); }
 .clock { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 130px; padding: 0 6px; }
-.timeline { display: block; width: 100%; background: var(--panel); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 10px 10px; margin-bottom: 10px; cursor: pointer; touch-action: none; }
+.timeline { display: block; flex: 1; min-width: 0; width: 100%; cursor: pointer; touch-action: none; }
 
 @media (max-width: 600px) {
     main { padding: 10px; }

@@ -42,7 +42,11 @@
         <span class="muted" id="sel"></span>
         <button id="export">Скачать фрагмент</button>
     </div>
-    <canvas id="timeline" class="timeline" hidden></canvas>
+    <div class="timeline-wrap" id="timelineWrap" hidden>
+        <button class="shift" id="prevRange" title="Предыдущий интервал">◀</button>
+        <canvas id="timeline" class="timeline"></canvas>
+        <button class="shift" id="nextRange" title="Следующий интервал">▶</button>
+    </div>
     <div class="grid" id="grid"></div>
 @endsection
 @push('scripts')
