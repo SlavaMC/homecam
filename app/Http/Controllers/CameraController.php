@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Camera;
+use App\Models\MotionEvent;
+use App\Models\Segment;
 use App\Services\Go2rtc;
 use App\Services\Storage;
 use Illuminate\Http\Request;
@@ -20,12 +22,27 @@ class CameraController extends Controller
 
     public function create()
     {
-        return view('cameras.form', ['camera' => new Camera(['transport' => 'tcp', 'enabled' => true, 'record' => true, 'segment_seconds' => 60])]);
+        return view('cameras.form', ['camera' => new Camera(['transport' => 'tcp', 'enabled' => true, 'record' => true, 'segment_seconds' => 60,
+            'motion_enabled' => true, 'motion_threshold' => 0.5, 'notify_enabled' => false, 'notify_threshold' => 3, 'notify_cooldown' => 300])]);
     }
 
     public function edit(Camera $camera)
     {
-        return view('cameras.form', ['camera' => $camera]);
+        return view('cameras.form', [
+            'camera' => $camera,
+            'events' => MotionEvent::where('camera_id', $camera->id)->where('start_ts', '>', time() - 86400)
+                ->orderByDesc('peak')->limit(12)->get(),
+        ]);
+    }
+
+    /** Current picture of the camera (first frame of the latest recording). */
+    public function snapshot(Camera $camera)
+    {
+        $seg = Segment::where('camera_id', $camera->id)->orderByDesc('start_ts')->first();
+        abort_unless($seg && is_file($seg->absPath()), 404);
+        $jpg = (string) shell_exec('ffmpeg -v error -i ' . escapeshellarg($seg->absPath()) . ' -frames:v 1 -vf scale=800:-2 -q:v 4 -f image2 -c:v mjpeg - 2>/dev/null');
+        abort_if($jpg === '', 404);
+        return response($jpg, 200, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'no-store']);
     }
 
     private function validated(Request $request, ?Camera $camera = null): array
@@ -38,7 +55,24 @@ class CameraController extends Controller
             'transport' => 'required|in:tcp,udp',
             'segment_seconds' => 'required|integer|min:10|max:600',
             'sort' => 'nullable|integer|min:0|max:1000',
+            'motion_threshold' => 'nullable|numeric|min:0.05|max:100',
+            'notify_threshold' => 'nullable|numeric|min:0.05|max:100',
+            'notify_cooldown_min' => 'nullable|numeric|min:0|max:1440',
+            'motion_mask' => ['nullable', 'string', 'regex:/^[01]{768}$/'],
+            'notify_mask' => ['nullable', 'string', 'regex:/^[01]{768}$/'],
         ]);
+        $data['motion_enabled'] = $request->boolean('motion_enabled');
+        $data['notify_enabled'] = $request->boolean('notify_enabled');
+        $data['motion_threshold'] = (float) ($data['motion_threshold'] ?? 0.5);
+        $data['notify_threshold'] = (float) ($data['notify_threshold'] ?? 3);
+        $data['notify_cooldown'] = (int) round(((float) ($data['notify_cooldown_min'] ?? 5)) * 60);
+        unset($data['notify_cooldown_min']);
+        foreach (['motion_mask', 'notify_mask'] as $m) {
+            // a mask with every cell enabled is the same as "whole frame"
+            if (empty($data[$m]) || !str_contains($data[$m], '0')) {
+                $data[$m] = null;
+            }
+        }
         $data['enabled'] = $request->boolean('enabled');
         $data['record'] = $request->boolean('record');
         $data['audio'] = $request->boolean('audio');

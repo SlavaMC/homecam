@@ -11,6 +11,8 @@ class Camera extends Model
     protected $fillable = [
         'name', 'slug', 'rtsp_url', 'username', 'password', 'transport',
         'enabled', 'record', 'audio', 'segment_seconds', 'sort',
+        'motion_enabled', 'motion_threshold', 'motion_mask',
+        'notify_enabled', 'notify_threshold', 'notify_mask', 'notify_cooldown',
     ];
 
     protected $hidden = ['password', 'username'];
@@ -25,6 +27,12 @@ class Camera extends Model
             'segment_seconds' => 'integer',
             'status_changed_at' => 'datetime',
             'last_segment_at' => 'datetime',
+            'motion_enabled' => 'boolean',
+            'motion_threshold' => 'float',
+            'notify_enabled' => 'boolean',
+            'notify_threshold' => 'float',
+            'notify_cooldown' => 'integer',
+            'notified_at' => 'datetime',
         ];
     }
 

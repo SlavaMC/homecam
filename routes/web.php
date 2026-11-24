@@ -23,6 +23,7 @@ Route::middleware('viewer')->group(function () {
     Route::get('/history', [ViewController::class, 'history']);
     Route::get('/api/history/{camera}.m3u8', [MediaController::class, 'playlist'])->whereNumber('camera');
     Route::get('/api/coverage', [MediaController::class, 'coverage']);
+    Route::get('/api/motion', [MediaController::class, 'motion']);
     Route::get('/rec/{path}', [MediaController::class, 'segment'])->where('path', '.+\.ts');
     Route::get('/exports', [ExportController::class, 'index']);
     Route::get('/api/exports', [ExportController::class, 'list']);
@@ -39,6 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/cameras', [CameraController::class, 'store']);
     Route::post('/cameras/test', [CameraController::class, 'test']);
     Route::get('/cameras/{camera}/edit', [CameraController::class, 'edit']);
+    Route::get('/cameras/{camera}/snapshot.jpg', [CameraController::class, 'snapshot'])->whereNumber('camera');
     Route::put('/cameras/{camera}', [CameraController::class, 'update']);
     Route::delete('/cameras/{camera}', [CameraController::class, 'destroy']);
 

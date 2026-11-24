@@ -12,6 +12,7 @@
     let master = null;
     let lastTick = performance.now();
     let mark = {in: null, out: null};
+    let motion = [];           // all events of shown cameras: {cam, s, e, peak} in ms, sorted by start
 
     // ---------- inputs ----------
     const pad = (n) => String(n).padStart(2, '0');
@@ -137,6 +138,18 @@
         mark = {in: null, out: null};
         players = cams.map((c) => new Player(c, a, b));
         players.forEach((p) => grid.appendChild(p.el));
+        motion = [];
+        api(`/api/motion?from=${Math.floor(a / 1000)}&to=${Math.ceil(b / 1000)}`).then((r) => {
+            const ids = new Set(cams.map((c) => c.id));
+            for (const [cam, list] of Object.entries(r.cameras || {})) {
+                if (!ids.has(+cam)) continue;
+                for (const [s, e, peak] of list) motion.push({cam: +cam, s: s * 1000, e: e * 1000, peak});
+            }
+            motion.sort((x, y) => x.s - y.s);
+            players.forEach((p) => { p.motion = motion.filter((m) => m.cam === p.cam.id); });
+            $('prevMotion').disabled = $('nextMotion').disabled = !motion.length;
+            drawTimeline();
+        }).catch(() => {});
         grid.dataset.count = players.length;
         bar.hidden = false;
         $('timelineWrap').hidden = false;
@@ -192,6 +205,11 @@
             const w = master ? master.wallAtCurrent() : null;
             if (w !== null && Math.abs(w - T) < 5000 * speed) T = w;
             else T += dt * speed;
+            if ($('onlyMotion').checked && motion.length && !motion.some((m) => T >= m.s - 2000 && T <= m.e + 1000)) {
+                const nx = motion.find((m) => m.s - 2000 > T);
+                if (nx) { T = nx.s - 2000; players.forEach((p) => { p.forceSeek = true; }); }
+                else { setPlaying(false); }
+            }
             if (!players.some((p) => p.covers(T))) {
                 const next = Math.min(...players.map((p) => p.nextStartAfter(T) ?? Infinity));
                 if (isFinite(next)) { T = next; players.forEach((p) => { p.forceSeek = true; }); }
@@ -265,6 +283,12 @@
             c.fillStyle = css.getPropertyValue('--accent').trim() || '#3b82f6';
             for (const f of p.frags) c.fillRect(x(f.pdt), y, Math.max(1, f.dur * 1000 / span * w + 0.5), ROW - 3);
         });
+        // motion events
+        c.fillStyle = 'rgba(245, 140, 20, .95)';
+        players.forEach((p, i) => {
+            const y = HEAD + i * ROW;
+            for (const m of p.motion || []) c.fillRect(x(m.s), y + 2, Math.max(2, x(m.e) - x(m.s)), ROW - 7);
+        });
         // cursor
         c.fillStyle = '#e5484d';
         c.fillRect(x(T) - 1, 0, 2, h);
@@ -294,6 +318,16 @@
     }
     $('prevRange').addEventListener('click', () => shiftRange(-1));
     $('nextRange').addEventListener('click', () => shiftRange(1));
+
+    // ---------- motion navigation ----------
+    $('nextMotion').addEventListener('click', () => {
+        const m = motion.find((ev) => ev.s - 2000 > T + 500);
+        if (m) seek(m.s - 2000);
+    });
+    $('prevMotion').addEventListener('click', () => {
+        const list = motion.filter((ev) => ev.s - 2000 < T - 3000);
+        if (list.length) seek(list[list.length - 1].s - 2000);
+    });
 
     // ---------- export ----------
     function updateSel() {

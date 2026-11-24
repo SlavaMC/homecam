@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Camera;
+use App\Models\MotionEvent;
 use App\Models\Segment;
 use App\Services\Access;
 use App\Services\Storage;
@@ -58,6 +59,20 @@ class MediaController extends Controller
             $out[$cam->id] = Storage::coverage($cam->id, $from, $to);
         }
         return response()->json(['from' => $from, 'to' => $to, 'cameras' => $out]);
+    }
+
+    /** Motion events per camera for the archive timeline. */
+    public function motion(Request $request)
+    {
+        abort_unless(Access::can('history'), 403);
+        [$from, $to] = $this->range($request);
+        $ids = Access::cameras('history')->pluck('id');
+        $out = [];
+        foreach (MotionEvent::whereIn('camera_id', $ids)->where('start_ts', '<', $to)->where('end_ts', '>', $from)
+            ->orderBy('start_ts')->get() as $e) {
+            $out[$e->camera_id][] = [$e->start_ts, $e->end_ts, round($e->peak, 1)];
+        }
+        return response()->json(['cameras' => $out]);
     }
 
     /** A segment file, served by nginx after the access check. */

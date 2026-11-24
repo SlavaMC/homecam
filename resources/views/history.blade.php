@@ -36,6 +36,9 @@
             <option value="8">8×</option><option value="16">16×</option>
         </select>
         <span id="clock" class="clock">--:--:--</span>
+        <button id="prevMotion" title="Предыдущее движение">◀ движение</button>
+        <button id="nextMotion" title="Следующее движение">движение ▶</button>
+        <label class="check small" title="При воспроизведении пропускать время без движения"><input type="checkbox" id="onlyMotion"> только движение</label>
         <div class="spacer"></div>
         <button id="markIn" title="Начало экспорта = текущий момент">[ начало</button>
         <button id="markOut" title="Конец экспорта = текущий момент">конец ]</button>

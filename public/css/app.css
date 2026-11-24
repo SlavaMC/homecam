@@ -116,3 +116,13 @@ video-stream .info { font-size: 11px; opacity: .6; padding: 6px 8px !important; 
     .who { margin-left: 0; }
     table.list td:nth-child(3), table.list th:nth-child(3) { display: none; }
 }
+
+/* motion zones */
+.form h3.sep { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.mask-block { margin-bottom: 14px; }
+.mask-head { margin-bottom: 6px; }
+.mask-editor { position: relative; max-width: 640px; line-height: 0; border-radius: 6px; overflow: hidden; background: #000; }
+.mask-editor img { width: 100%; display: block; }
+.mask-editor canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+.mask-block .actions { margin-top: 6px; display: flex; gap: 6px; }
+.evlink { white-space: nowrap; }

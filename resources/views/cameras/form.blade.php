@@ -29,6 +29,58 @@
         <label class="check"><input type="checkbox" name="enabled" value="1" @checked(old('enabled', $camera->enabled))> Камера включена</label>
         <label class="check"><input type="checkbox" name="record" value="1" @checked(old('record', $camera->record))> Вести непрерывную запись</label>
         <label class="check"><input type="checkbox" name="audio" value="1" @checked(old('audio', $camera->audio))> Записывать звук (перекодируется в AAC)</label>
+
+        <h3 class="sep">Детекция движения</h3>
+        <p class="muted small">Сила движения — какой процент выбранной зоны изменился между соседними ключевыми кадрами (раз в 1–5 с).
+            Проход человека вблизи обычно даёт 3–15%, машина вдалеке 1–3%, шум и снег до 0,5%.</p>
+        <label class="check"><input type="checkbox" name="motion_enabled" value="1" @checked(old('motion_enabled', $camera->motion_enabled))> Искать движение в записи</label>
+        <div class="row">
+            <label>Минимальная сила для события, %
+                <input type="number" name="motion_threshold" min="0.05" max="100" step="0.05" value="{{ old('motion_threshold', $camera->motion_threshold) }}">
+            </label>
+        </div>
+        <div class="mask-block">
+            <div class="mask-head"><b>Зона детекции</b> <span class="muted small">выделите мышью прямоугольники, где искать движение; повторное выделение по закрашенному стирает. Пусто — весь кадр.</span></div>
+            @if($camera->exists)
+                <div class="mask-editor" data-input="motion_mask" data-color="47,111,222">
+                    <img src="/cameras/{{ $camera->id }}/snapshot.jpg" alt="">
+                    <canvas></canvas>
+                </div>
+                <div class="actions small"><button type="button" data-mask-all>Весь кадр</button><button type="button" data-mask-none>Очистить</button></div>
+            @else
+                <p class="muted small">Зоны можно нарисовать после сохранения камеры и первой записи.</p>
+            @endif
+            <input type="hidden" name="motion_mask" value="{{ old('motion_mask', $camera->motion_mask) }}">
+        </div>
+
+        <h3 class="sep">Оповещение в Telegram о движении</h3>
+        <label class="check"><input type="checkbox" name="notify_enabled" value="1" @checked(old('notify_enabled', $camera->notify_enabled))> Присылать снимок в Telegram при движении</label>
+        <div class="row">
+            <label>Минимальная сила в зоне оповещения, %
+                <input type="number" name="notify_threshold" min="0.05" max="100" step="0.05" value="{{ old('notify_threshold', $camera->notify_threshold) }}">
+            </label>
+            <label>Не чаще одного раза в, мин
+                <input type="number" name="notify_cooldown_min" min="0" max="1440" step="0.5" value="{{ old('notify_cooldown_min', round(($camera->notify_cooldown ?? 300) / 60, 1)) }}">
+            </label>
+        </div>
+        <div class="mask-block">
+            <div class="mask-head"><b>Зона оповещения</b> <span class="muted small">например, только дверь или калитка. Пусто — весь кадр.</span></div>
+            @if($camera->exists)
+                <div class="mask-editor" data-input="notify_mask" data-color="229,72,77">
+                    <img src="/cameras/{{ $camera->id }}/snapshot.jpg" alt="">
+                    <canvas></canvas>
+                </div>
+                <div class="actions small"><button type="button" data-mask-all>Весь кадр</button><button type="button" data-mask-none>Очистить</button></div>
+            @endif
+            <input type="hidden" name="notify_mask" value="{{ old('notify_mask', $camera->notify_mask) }}">
+        </div>
+        @if(!empty($events) && $events->count())
+            <p class="small"><b>Самые сильные движения за сутки</b> (помогает подобрать пороги):
+                @foreach($events as $ev)
+                    <a href="/history?from={{ $ev->start_ts - 20 }}&to={{ $ev->start_ts + 280 }}&cams={{ $camera->id }}" class="evlink"><span data-ts="{{ $ev->start_ts }}"></span> — {{ round($ev->peak, 1) }}%@if($ev->notify_peak) (зона оповещения {{ round($ev->notify_peak, 1) }}%)@endif</a>@if(!$loop->last), @endif
+                @endforeach
+            </p>
+        @endif
         <div class="actions">
             <button class="primary">Сохранить</button>
             <button type="button" id="test">Проверить подключение</button>
@@ -48,6 +100,7 @@
     @endif
 @endsection
 @push('scripts')
+<script src="/js/mask.js?v={{ filemtime(public_path('js/mask.js')) }}"></script>
 <script>
 document.getElementById('test').addEventListener('click', async () => {
     const out = document.getElementById('testResult');
