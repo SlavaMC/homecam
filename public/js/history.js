@@ -35,8 +35,44 @@
     document.querySelectorAll('[data-quick]').forEach((b) => b.addEventListener('click', () => { setQuick(b.dataset.quick); load(); }));
     $('show').addEventListener('click', () => load());
 
+    // ---------- remembered choices (per browser) ----------
+    const store = {
+        get(k, d) { try { const v = localStorage.getItem('history.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+        set(k, v) { try { localStorage.setItem('history.' + k, JSON.stringify(v)); } catch (e) {} },
+    };
+    const camBoxes = [...document.querySelectorAll('#camList input[data-cam]')];
+    const camAll = $('camAll');
+    function syncAll() {
+        if (!camAll) return;
+        const n = camBoxes.filter((i) => i.checked).length;
+        camAll.checked = n === camBoxes.length;
+        camAll.indeterminate = n > 0 && n < camBoxes.length;
+    }
+    function saveCams() { store.set('cams', camBoxes.filter((i) => i.checked).map((i) => i.value)); syncAll(); }
+    camBoxes.forEach((i) => i.addEventListener('change', saveCams));
+    camAll?.addEventListener('change', () => { camBoxes.forEach((i) => { i.checked = camAll.checked; }); saveCams(); });
+    const onlyMotionEl = $('onlyMotion');
+    onlyMotionEl.checked = !!store.get('onlyMotion', false);
+    onlyMotionEl.addEventListener('change', () => store.set('onlyMotion', onlyMotionEl.checked));
+    const colsEl = $('cols');
+    function applyCols() {
+        const v = +colsEl.value;
+        grid.style.gridTemplateColumns = v ? `repeat(${v}, minmax(0, 1fr))` : '';
+        store.set('cols', colsEl.value);
+    }
+    colsEl.value = store.get('cols', '0');
+    colsEl.addEventListener('change', applyCols);
+    applyCols();
+
     function selectedCams() {
-        return [...document.querySelectorAll('#camList input:checked')].map((i) => ({id: +i.value, name: i.dataset.name}));
+        return camBoxes.filter((i) => i.checked).map((i) => ({id: +i.value, name: i.dataset.name}));
+    }
+
+    // colour of a motion mark: weak = pale yellow, strong = dark red (log scale 0.3% .. 30%)
+    function motionStyle(peak) {
+        const t = Math.max(0, Math.min(1, Math.log(Math.max(peak, 0.01) / 0.3) / Math.log(100)));
+        const hue = 48 - 48 * t, light = 70 - 32 * t, alpha = 0.55 + 0.45 * t;
+        return {color: `hsla(${hue.toFixed(0)}, 95%, ${light.toFixed(0)}%, ${alpha.toFixed(2)})`, t};
     }
 
     // ---------- player ----------
@@ -205,7 +241,7 @@
             const w = master ? master.wallAtCurrent() : null;
             if (w !== null && Math.abs(w - T) < 5000 * speed) T = w;
             else T += dt * speed;
-            if ($('onlyMotion').checked && motion.length && !motion.some((m) => T >= m.s - 2000 && T <= m.e + 1000)) {
+            if (onlyMotionEl.checked && motion.length && !motion.some((m) => T >= m.s - 2000 && T <= m.e + 1000)) {
                 const nx = motion.find((m) => m.s - 2000 > T);
                 if (nx) { T = nx.s - 2000; players.forEach((p) => { p.forceSeek = true; }); }
                 else { setPlaying(false); }
@@ -283,11 +319,16 @@
             c.fillStyle = css.getPropertyValue('--accent').trim() || '#3b82f6';
             for (const f of p.frags) c.fillRect(x(f.pdt), y, Math.max(1, f.dur * 1000 / span * w + 0.5), ROW - 3);
         });
-        // motion events
-        c.fillStyle = 'rgba(245, 140, 20, .95)';
+        // motion events: colour and height show the strength, strongest drawn on top
         players.forEach((p, i) => {
             const y = HEAD + i * ROW;
-            for (const m of p.motion || []) c.fillRect(x(m.s), y + 2, Math.max(2, x(m.e) - x(m.s)), ROW - 7);
+            const list = (p.motion || []).slice().sort((a, b) => a.peak - b.peak);
+            for (const m of list) {
+                const st = motionStyle(m.peak);
+                const hgt = Math.round(3 + (ROW - 6) * st.t);
+                c.fillStyle = st.color;
+                c.fillRect(x(m.s), y + (ROW - 3 - hgt) / 2, Math.max(2, x(m.e) - x(m.s)), hgt);
+            }
         });
         // cursor
         c.fillStyle = '#e5484d';
@@ -352,10 +393,9 @@
     if (q.get('from') && q.get('to')) {
         fromEl.value = toInput(+q.get('from') * 1000);
         toEl.value = toInput(+q.get('to') * 1000);
-        if (q.get('cams')) {
-            const ids = q.get('cams').split(',');
-            document.querySelectorAll('#camList input').forEach((i) => { i.checked = ids.includes(i.value); });
-        }
+        const ids = q.get('cams') ? q.get('cams').split(',') : store.get('cams', camBoxes.map((i) => i.value));
+        camBoxes.forEach((i) => { i.checked = ids.includes(i.value); });
+        syncAll();
         load();
     } else {
         setQuick(3600);
@@ -363,5 +403,10 @@
             if (LIMIT.from) fromEl.value = toInput(LIMIT.from * 1000);
             if (LIMIT.to) toEl.value = toInput(Math.min(LIMIT.to * 1000, Date.now()));
         }
+        const saved = store.get('cams', null);
+        camBoxes.forEach((i) => { i.checked = saved === null ? true : saved.includes(i.value); });
+        syncAll();
+        // cameras were chosen before: show the last hour right away
+        if (saved && saved.length && selectedCams().length) load();
     }
 })();

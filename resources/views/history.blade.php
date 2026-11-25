@@ -15,8 +15,11 @@
         <button class="primary" id="show">Показать</button>
     </div>
     <div class="toolbar wrap cams" id="camList">
+        @if($cameras->count() > 1)
+            <label class="check all"><input type="checkbox" id="camAll"> <b>Все камеры</b></label>
+        @endif
         @foreach($cameras as $cam)
-            <label class="check"><input type="checkbox" value="{{ $cam->id }}" data-name="{{ $cam->name }}" checked> {{ $cam->name }}</label>
+            <label class="check"><input type="checkbox" value="{{ $cam->id }}" data-name="{{ $cam->name }}" data-cam> {{ $cam->name }}</label>
         @endforeach
         @if($cameras->isEmpty())<span class="muted">Нет доступных камер</span>@endif
     </div>
@@ -39,6 +42,13 @@
         <button id="prevMotion" title="Предыдущее движение">◀ движение</button>
         <button id="nextMotion" title="Следующее движение">движение ▶</button>
         <label class="check small" title="При воспроизведении пропускать время без движения"><input type="checkbox" id="onlyMotion"> только движение</label>
+        <span class="legend small muted" title="Цвет отметки движения: чем темнее и выше, тем сильнее движение">слабое <i></i> сильное</span>
+        <label class="small muted">Сетка
+            <select id="cols">
+                <option value="0">авто</option><option value="1">1</option><option value="2">2</option>
+                <option value="3">3</option><option value="4">4</option>
+            </select>
+        </label>
         <div class="spacer"></div>
         <button id="markIn" title="Начало экспорта = текущий момент">[ начало</button>
         <button id="markOut" title="Конец экспорта = текущий момент">конец ]</button>
