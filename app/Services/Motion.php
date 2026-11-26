@@ -184,15 +184,18 @@ class Motion
             $cx = $c % self::GRID_W; $cy = intdiv($c, self::GRID_W);
             $x0 = min($x0, $cx); $y0 = min($y0, $cy); $x1 = max($x1, $cx); $y1 = max($y1, $cy);
         }
+        $delay = max(0.0, (float) ($cam->notify_snapshot_delay ?? 2));
         $vf = 'scale=960:-2';
-        if ($x1 >= 0) {
+        // the red frame marks where motion was detected; with a delayed picture it is only drawn for short delays
+        if ($x1 >= 0 && $delay <= 1) {
             $vf .= sprintf(',drawbox=x=iw*%.4f:y=ih*%.4f:w=iw*%.4f:h=ih*%.4f:color=red@0.9:t=4',
                 $x0 / self::GRID_W, $y0 / self::GRID_H, ($x1 - $x0 + 1) / self::GRID_W, ($y1 - $y0 + 1) / self::GRID_H);
         }
         $jpg = sys_get_temp_dir() . '/motion-' . $event->id . '.jpg';
-        $offset = max(0, $ts - $seg->start_ts);
-        exec(sprintf('ffmpeg -v error -y -ss %.2f -i %s -frames:v 1 -vf %s -q:v 4 %s 2>&1',
-            $offset, escapeshellarg($seg->absPath()), escapeshellarg($vf), escapeshellarg($jpg)));
+        $this->snapshot($cam, $seg, $ts + $delay, $vf, $jpg);
+        if (!is_file($jpg)) {
+            $this->grab($seg->absPath(), max(0, $ts - $seg->start_ts), $vf, $jpg); // fallback: the moment of detection
+        }
 
         $from = (int) $ts - 30;
         $link = rtrim((string) config('app.url'), '/') . '/history?' . http_build_query(['from' => $from, 'to' => $from + 300, 'cams' => $cam->id]);
@@ -202,6 +205,46 @@ class Motion
         @unlink($jpg);
         if ($err) {
             Log::warning("motion alert for camera #{$cam->id} failed: {$err}");
+        }
+    }
+
+    /**
+     * Picture at wall-clock time $at. It may be in the next segment, which is still being
+     * written (MPEG-TS can be read while recording), so wait a little for the data to arrive.
+     */
+    private function snapshot(Camera $cam, Segment $seg, float $at, string $vf, string $jpg): void
+    {
+        if ($at < $seg->start_ts + $seg->duration - 0.2) {
+            $this->grab($seg->absPath(), $at - $seg->start_ts, $vf, $jpg);
+            return;
+        }
+        for ($try = 0; $try < 6 && !is_file($jpg); $try++) {
+            $best = null;
+            foreach ([0, -3600] as $off) {
+                $t = (int) $at + $off;
+                foreach (glob($cam->recDir() . '/' . date('Y-m-d', $t) . '/' . date('H', $t) . '/*.ts') ?: [] as $f) {
+                    $start = Storage::parseStart($f);
+                    if ($start !== null && $start > $seg->start_ts && $start <= $at && (!$best || $start > $best[1])) {
+                        $best = [$f, $start];
+                    }
+                }
+            }
+            if ($best) {
+                $this->grab($best[0], $at - $best[1], $vf, $jpg);
+            }
+            if (!is_file($jpg)) {
+                sleep(3);
+            }
+        }
+    }
+
+    private function grab(string $file, float $offset, string $vf, string $jpg): void
+    {
+        @unlink($jpg);
+        exec(sprintf('ffmpeg -v error -y -ss %.2f -i %s -frames:v 1 -vf %s -q:v 4 %s 2>&1',
+            max(0, $offset), escapeshellarg($file), escapeshellarg($vf), escapeshellarg($jpg)));
+        if (is_file($jpg) && filesize($jpg) < 1000) {
+            @unlink($jpg);
         }
     }
 

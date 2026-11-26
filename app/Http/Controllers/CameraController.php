@@ -23,7 +23,7 @@ class CameraController extends Controller
     public function create()
     {
         return view('cameras.form', ['camera' => new Camera(['transport' => 'tcp', 'enabled' => true, 'record' => true, 'segment_seconds' => 60,
-            'motion_enabled' => true, 'motion_threshold' => 0.5, 'notify_enabled' => false, 'notify_threshold' => 3, 'notify_cooldown' => 300])]);
+            'motion_enabled' => true, 'motion_threshold' => 0.5, 'notify_enabled' => false, 'notify_threshold' => 3, 'notify_cooldown' => 300, 'notify_snapshot_delay' => 2])]);
     }
 
     public function edit(Camera $camera)
@@ -58,6 +58,7 @@ class CameraController extends Controller
             'motion_threshold' => 'nullable|numeric|min:0.05|max:100',
             'notify_threshold' => 'nullable|numeric|min:0.05|max:100',
             'notify_cooldown_min' => 'nullable|numeric|min:0|max:1440',
+            'notify_snapshot_delay' => 'nullable|numeric|min:0|max:30',
             'motion_mask' => ['nullable', 'string', 'regex:/^[01]{768}$/'],
             'notify_mask' => ['nullable', 'string', 'regex:/^[01]{768}$/'],
         ]);
@@ -67,6 +68,7 @@ class CameraController extends Controller
         $data['notify_threshold'] = (float) ($data['notify_threshold'] ?? 3);
         $data['notify_cooldown'] = (int) round(((float) ($data['notify_cooldown_min'] ?? 5)) * 60);
         unset($data['notify_cooldown_min']);
+        $data['notify_snapshot_delay'] = (float) ($data['notify_snapshot_delay'] ?? 2);
         foreach (['motion_mask', 'notify_mask'] as $m) {
             // a mask with every cell enabled is the same as "whole frame"
             if (empty($data[$m]) || !str_contains($data[$m], '0')) {

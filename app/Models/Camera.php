@@ -12,7 +12,7 @@ class Camera extends Model
         'name', 'slug', 'rtsp_url', 'username', 'password', 'transport',
         'enabled', 'record', 'audio', 'segment_seconds', 'sort',
         'motion_enabled', 'motion_threshold', 'motion_mask',
-        'notify_enabled', 'notify_threshold', 'notify_mask', 'notify_cooldown',
+        'notify_enabled', 'notify_threshold', 'notify_mask', 'notify_cooldown', 'notify_snapshot_delay',
     ];
 
     protected $hidden = ['password', 'username'];
@@ -32,6 +32,7 @@ class Camera extends Model
             'notify_enabled' => 'boolean',
             'notify_threshold' => 'float',
             'notify_cooldown' => 'integer',
+            'notify_snapshot_delay' => 'float',
             'notified_at' => 'datetime',
         ];
     }

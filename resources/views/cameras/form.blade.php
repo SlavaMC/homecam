@@ -62,6 +62,9 @@
             <label>Не чаще одного раза в, мин
                 <input type="number" name="notify_cooldown_min" min="0" max="1440" step="0.5" value="{{ old('notify_cooldown_min', round(($camera->notify_cooldown ?? 300) / 60, 1)) }}">
             </label>
+            <label>Снимок через, сек после начала движения
+                <input type="number" name="notify_snapshot_delay" min="0" max="30" step="0.5" value="{{ old('notify_snapshot_delay', $camera->notify_snapshot_delay ?? 2) }}">
+            </label>
         </div>
         <div class="mask-block">
             <div class="mask-head"><b>Зона оповещения</b> <span class="muted small">например, только дверь или калитка. Пусто — весь кадр.</span></div>
