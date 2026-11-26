@@ -12,6 +12,7 @@
     let master = null;
     let lastTick = performance.now();
     let mark = {in: null, out: null};
+    let waitTimer = null;
     let motion = [];           // all events of shown cameras: {cam, s, e, peak} in ms, sorted by start
 
     // ---------- inputs ----------
@@ -167,13 +168,18 @@
         const cams = selectedCams();
         if (!cams.length) { alert('Выберите камеры'); return; }
 
-        players.forEach((p) => p.destroy());
+        // same interval: only the set of cameras changed, keep position, play state and export marks
+        const same = range && range.from === a && range.to === b;
+        const keepT = T, keepPlaying = playing;
+        clearInterval(waitTimer);
+        const old = new Map(players.map((p) => [p.cam.id, p]));
+        const next = cams.map((c) => (same && old.get(c.id)) || new Player(c, a, b));
+        old.forEach((p, id) => { if (!next.includes(p)) p.destroy(); });
         range = {from: a, to: b};
-        T = a;
         master = null;
-        mark = {in: null, out: null};
-        players = cams.map((c) => new Player(c, a, b));
-        players.forEach((p) => grid.appendChild(p.el));
+        if (!same) { T = a; mark = {in: null, out: null}; }
+        players = next;
+        players.forEach((p) => { p.forceSeek = true; grid.appendChild(p.el); }); // appendChild also fixes the order
         motion = [];
         api(`/api/motion?from=${Math.floor(a / 1000)}&to=${Math.ceil(b / 1000)}`).then((r) => {
             const ids = new Set(cams.map((c) => c.id));
@@ -189,18 +195,23 @@
         grid.dataset.count = players.length;
         bar.hidden = false;
         $('timelineWrap').hidden = false;
-        setPlaying(false);
+        if (!same) setPlaying(false);
         updateSel();
         const q = new URLSearchParams({from: Math.floor(a / 1000), to: Math.floor(b / 1000), cams: cams.map((c) => c.id).join(',')});
         history.replaceState(null, '', '?' + q);
-        // start from the first recorded moment once playlists are loaded
-        const wait = setInterval(() => {
-            if (players.every((p) => p.ready)) {
-                clearInterval(wait);
-                const first = Math.min(...players.map((p) => p.frags[0]?.pdt ?? Infinity));
-                if (isFinite(first)) seek(Math.max(a, first));
-                setPlaying(true);
+        waitTimer = setInterval(() => {
+            if (!players.every((p) => p.ready)) return;
+            clearInterval(waitTimer);
+            if (same) {
+                // continue from the same moment
+                seek(keepT);
+                setPlaying(keepPlaying);
+                return;
             }
+            // new interval: start from the first recorded moment
+            const first = Math.min(...players.map((p) => p.frags[0]?.pdt ?? Infinity));
+            if (isFinite(first)) seek(Math.max(a, first));
+            setPlaying(true);
         }, 200);
     }
 
