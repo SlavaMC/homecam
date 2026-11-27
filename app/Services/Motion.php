@@ -74,7 +74,8 @@ class Motion
     public function process(Segment $seg, Camera $cam): void
     {
         $file = $seg->absPath();
-        if (!$cam->motion_enabled || !is_file($file)) {
+        $heatOn = (bool) ($cam->heatmap_enabled ?? false);
+        if ((!$cam->motion_enabled && !$heatOn) || !is_file($file)) {
             $seg->forceFill(['motion_checked' => true])->save();
             return;
         }
@@ -86,6 +87,8 @@ class Motion
         $notTotal = $notCells === null ? self::GRID_W * self::GRID_H : count($notCells);
         $peakSeg = 0.0;
         $prev = $this->prev[$cam->id] ?? null;
+        $heat = $heatOn ? array_fill(0, self::GRID_W * self::GRID_H, 0) : null;
+        $heatMin = max(1, (int) ceil(16 * (float) ($cam->heatmap_threshold ?? 25) / 100));
 
         foreach ($frames as $i => $frame) {
             $ts = $seg->start_ts + ($n > 0 ? $i * $seg->duration / $n : 0);
@@ -109,6 +112,16 @@ class Motion
             if ($changed * 100 / (self::W * self::H) >= self::LIGHT_CHANGE) {
                 continue; // the whole picture changed: IR switch, lights, camera re-exposure
             }
+            if ($heat !== null) {
+                foreach ($cellHits as $c => $h) {
+                    if ($h >= $heatMin && $heat[$c] < 255) {
+                        $heat[$c]++;
+                    }
+                }
+            }
+            if (!$cam->motion_enabled) {
+                continue;
+            }
             $det = $this->score($cellHits, $detCells, $detTotal);
             $not = $this->score($cellHits, $notCells, $notTotal);
             $peakSeg = max($peakSeg, $det);
@@ -123,7 +136,40 @@ class Motion
             }
         }
         $this->prev[$cam->id] = $prev;
-        $seg->forceFill(['motion_checked' => true, 'motion_peak' => round($peakSeg, 2)])->save();
+        $seg->forceFill([
+            'motion_checked' => true,
+            'motion_peak' => $cam->motion_enabled ? round($peakSeg, 2) : null,
+            'heat' => $heat !== null ? gzcompress(pack('C*', ...$heat), 6) : null,
+        ])->save();
+    }
+
+    /**
+     * Heat map of a camera over [from, to): per cell, how many key frames had motion.
+     * @return array{counts: int[], max: int, segments: int}
+     */
+    public static function heatmap(int $cameraId, int $from, int $to): array
+    {
+        $acc = array_fill(0, self::GRID_W * self::GRID_H, 0);
+        $n = 0;
+        Segment::where('camera_id', $cameraId)->where('start_ts', '>=', $from - 600)->where('start_ts', '<', $to)
+            ->whereNotNull('heat')->select(['id', 'start_ts', 'duration', 'heat'])
+            ->chunkById(2000, function ($segs) use (&$acc, &$n, $from) {
+                foreach ($segs as $s) {
+                    if ($s->start_ts + $s->duration <= $from) {
+                        continue;
+                    }
+                    $raw = @gzuncompress($s->heat);
+                    if ($raw === false || strlen($raw) !== count($acc)) {
+                        continue;
+                    }
+                    $i = 0;
+                    foreach (unpack('C*', $raw) as $v) {
+                        $acc[$i++] += $v;
+                    }
+                    $n++;
+                }
+            });
+        return ['counts' => $acc, 'max' => max($acc), 'segments' => $n];
     }
 
     /** % of the zone's pixels that changed. */

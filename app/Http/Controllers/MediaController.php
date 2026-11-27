@@ -75,6 +75,15 @@ class MediaController extends Controller
         return response()->json(['cameras' => $out]);
     }
 
+    /** Heat map of motion for one camera over the interval. */
+    public function heatmap(Request $request, Camera $camera)
+    {
+        abort_unless(Access::can('history', $camera->id), 403);
+        [$from, $to] = $this->range($request);
+        $h = \App\Services\Motion::heatmap($camera->id, $from, $to);
+        return response()->json(['w' => \App\Services\Motion::GRID_W, 'h' => \App\Services\Motion::GRID_H] + $h);
+    }
+
     /** A segment file, served by nginx after the access check. */
     public function segment(string $path)
     {

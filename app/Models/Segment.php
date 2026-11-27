@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Segment extends Model
 {
     public $timestamps = false;
+    protected $hidden = ['heat'];
     protected $fillable = ['camera_id', 'path', 'start_ts', 'duration', 'size'];
 
     protected function casts(): array

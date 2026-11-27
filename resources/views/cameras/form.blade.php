@@ -53,6 +53,16 @@
             <input type="hidden" name="motion_mask" value="{{ old('motion_mask', $camera->motion_mask) }}">
         </div>
 
+        <h3 class="sep">Тепловая карта движений</h3>
+        <p class="muted small">Для каждой клетки сетки 32×24 считается, сколько раз в ней было движение. Карта показывается в архиве кнопкой на плитке камеры.</p>
+        <label class="check"><input type="checkbox" name="heatmap_enabled" value="1" @checked(old('heatmap_enabled', $camera->heatmap_enabled ?? true))> Записывать тепловую карту</label>
+        <div class="row">
+            <label>Минимальная сила движения в клетке, % её площади
+                <input type="number" name="heatmap_threshold" min="1" max="100" step="1" value="{{ old('heatmap_threshold', $camera->heatmap_threshold ?? 25) }}">
+                <span class="hint">Меньше — чувствительнее (и больше шума от снега и листвы). По умолчанию 25%.</span>
+            </label>
+        </div>
+
         <h3 class="sep">Оповещение в Telegram о движении</h3>
         <label class="check"><input type="checkbox" name="notify_enabled" value="1" @checked(old('notify_enabled', $camera->notify_enabled))> Присылать снимок в Telegram при движении</label>
         <div class="row">

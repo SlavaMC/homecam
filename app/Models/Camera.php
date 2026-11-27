@@ -13,6 +13,7 @@ class Camera extends Model
         'enabled', 'record', 'audio', 'segment_seconds', 'sort',
         'motion_enabled', 'motion_threshold', 'motion_mask',
         'notify_enabled', 'notify_threshold', 'notify_mask', 'notify_cooldown', 'notify_snapshot_delay',
+        'heatmap_enabled', 'heatmap_threshold',
     ];
 
     protected $hidden = ['password', 'username'];
@@ -33,6 +34,8 @@ class Camera extends Model
             'notify_threshold' => 'float',
             'notify_cooldown' => 'integer',
             'notify_snapshot_delay' => 'float',
+            'heatmap_enabled' => 'boolean',
+            'heatmap_threshold' => 'float',
             'notified_at' => 'datetime',
         ];
     }

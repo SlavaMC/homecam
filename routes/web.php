@@ -24,6 +24,7 @@ Route::middleware('viewer')->group(function () {
     Route::get('/api/history/{camera}.m3u8', [MediaController::class, 'playlist'])->whereNumber('camera');
     Route::get('/api/coverage', [MediaController::class, 'coverage']);
     Route::get('/api/motion', [MediaController::class, 'motion']);
+    Route::get('/api/heatmap/{camera}', [MediaController::class, 'heatmap'])->whereNumber('camera');
     Route::get('/rec/{path}', [MediaController::class, 'segment'])->where('path', '.+\.ts');
     Route::get('/exports', [ExportController::class, 'index']);
     Route::get('/api/exports', [ExportController::class, 'list']);

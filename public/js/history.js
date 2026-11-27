@@ -83,12 +83,14 @@
             this.frags = [];
             this.el = document.createElement('div');
             this.el.className = 'tile';
-            this.el.innerHTML = `<div class="tile-head"><span class="name"></span><span class="spacer"></span><span class="muted small state"></span><button class="icon" title="На весь экран">⛶</button></div>
+            this.el.innerHTML = `<div class="tile-head"><span class="name"></span><span class="spacer"></span><span class="muted small heat-info"></span><span class="muted small state"></span><button class="icon heat-btn" title="Тепловая карта движений за интервал">🔥</button><button class="icon full-btn" title="На весь экран">⛶</button></div>
                 <div class="player"><video muted playsinline></video><div class="overlay">загрузка…</div></div>`;
             this.el.querySelector('.name').textContent = cam.name;
             this.video = this.el.querySelector('video');
             this.overlay = this.el.querySelector('.overlay');
-            this.el.querySelector('button').onclick = () => {
+            this.video.addEventListener('loadedmetadata', () => this.drawHeat());
+            this.el.querySelector('.heat-btn').onclick = () => this.toggleHeat(from, to);
+            this.el.querySelector('.full-btn').onclick = () => {
                 if (document.fullscreenElement) document.exitFullscreen(); else this.el.requestFullscreen?.();
             };
             const url = `/api/history/${cam.id}.m3u8?from=${Math.floor(from / 1000)}&to=${Math.ceil(to / 1000)}`;
@@ -155,6 +157,62 @@
             return null;
         }
         covers(ms) { return !!this.fragAtWall(ms); }
+        // ---------- heat map overlay ----------
+        async toggleHeat(from, to) {
+            const btn = this.el.querySelector('.heat-btn'), info = this.el.querySelector('.heat-info');
+            if (this.heat) {
+                this.heat.canvas.remove(); this.heat = null;
+                btn.classList.remove('on'); info.textContent = '';
+                return;
+            }
+            btn.classList.add('on'); info.textContent = 'считаю…';
+            try {
+                const d = await api(`/api/heatmap/${this.cam.id}?from=${Math.floor(from / 1000)}&to=${Math.ceil(to / 1000)}`);
+                if (!btn.classList.contains('on')) return;
+                const canvas = document.createElement('canvas');
+                canvas.className = 'heat';
+                this.el.querySelector('.player').appendChild(canvas);
+                this.heat = {canvas, d};
+                info.textContent = d.max ? `макс. ${d.max} сраб.` : 'движения нет';
+                if (!d.segments) info.textContent = 'нет данных';
+                canvas.addEventListener('mousemove', (e) => {
+                    const r = this.contentRect(), b = canvas.getBoundingClientRect();
+                    const x = Math.floor((e.clientX - b.left - r.x) / r.w * d.w), y = Math.floor((e.clientY - b.top - r.y) / r.h * d.h);
+                    canvas.title = (x >= 0 && x < d.w && y >= 0 && y < d.h) ? `Движение в клетке: ${d.counts[y * d.w + x]} раз` : '';
+                });
+                this.drawHeat();
+            } catch (e) { info.textContent = 'ошибка'; btn.classList.remove('on'); }
+        }
+        contentRect() {
+            // where the picture is inside the element (object-fit: contain)
+            const W = this.video.clientWidth, H = this.video.clientHeight;
+            const vw = this.video.videoWidth || 16, vh = this.video.videoHeight || 9;
+            const s = Math.min(W / vw, H / vh), w = vw * s, h = vh * s;
+            return {x: (W - w) / 2, y: (H - h) / 2, w, h};
+        }
+        drawHeat() {
+            if (!this.heat) return;
+            const {canvas, d} = this.heat, dpr = window.devicePixelRatio || 1;
+            const W = canvas.clientWidth, H = canvas.clientHeight;
+            canvas.width = W * dpr; canvas.height = H * dpr;
+            const c = canvas.getContext('2d');
+            c.setTransform(dpr, 0, 0, dpr, 0, 0);
+            if (!d.max) return;
+            const small = document.createElement('canvas');
+            small.width = d.w; small.height = d.h;
+            const sc = small.getContext('2d'), img = sc.createImageData(d.w, d.h);
+            const stops = [[0, 0, 255], [0, 255, 255], [0, 255, 0], [255, 255, 0], [255, 0, 0]];
+            d.counts.forEach((v, i) => {
+                const t = Math.sqrt(v / d.max), p = t * 4, k = Math.min(3, Math.floor(p)), f = p - k;
+                for (let ch = 0; ch < 3; ch++) img.data[i * 4 + ch] = Math.round(stops[k][ch] + (stops[k + 1][ch] - stops[k][ch]) * f);
+                img.data[i * 4 + 3] = v ? Math.round(70 + 110 * t) : 0;
+            });
+            sc.putImageData(img, 0, 0);
+            const r = this.contentRect();
+            c.imageSmoothingEnabled = true;
+            c.imageSmoothingQuality = 'high';
+            c.drawImage(small, r.x, r.y, r.w, r.h);
+        }
         destroy() { this.hls?.destroy(); this.video.removeAttribute('src'); this.el.remove(); }
     }
 
@@ -345,7 +403,8 @@
         c.fillStyle = '#e5484d';
         c.fillRect(x(T) - 1, 0, 2, h);
     }
-    window.addEventListener('resize', drawTimeline);
+    window.addEventListener('resize', () => { drawTimeline(); players.forEach((p) => p.drawHeat()); });
+    document.addEventListener('fullscreenchange', () => setTimeout(() => players.forEach((p) => p.drawHeat()), 100));
     let dragging = false;
     const seekFromEvent = (e) => {
         const r = canvas.getBoundingClientRect();

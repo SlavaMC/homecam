@@ -219,6 +219,7 @@ class Storage
     public static function segments(int $cameraId, int $from, int $to)
     {
         return Segment::where('camera_id', $cameraId)
+            ->select(['id', 'camera_id', 'path', 'start_ts', 'duration', 'size'])
             ->where('start_ts', '<', $to)
             ->where('start_ts', '>', $from - 3600)
             ->orderBy('start_ts')

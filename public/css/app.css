@@ -133,3 +133,9 @@ video-stream .info { font-size: 11px; opacity: .6; padding: 6px 8px !important; 
 .legend i { display: inline-block; width: 48px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, hsla(48,95%,70%,.55), hsla(24,95%,54%,.8), hsla(0,95%,38%,1)); }
 .grid > .tile { min-width: 0; }
 main.wide { overflow-x: hidden; }
+
+/* heat map overlay */
+.tile .player canvas.heat { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tile .heat-btn { filter: grayscale(1); opacity: .6; }
+.tile .heat-btn.on { filter: none; opacity: 1; }
+.tile .heat-info { white-space: nowrap; }
