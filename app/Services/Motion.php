@@ -89,6 +89,7 @@ class Motion
         $prev = $this->prev[$cam->id] ?? null;
         $heat = $heatOn ? array_fill(0, self::GRID_W * self::GRID_H, 0) : null;
         $heatMin = max(1, (int) ceil(16 * (float) ($cam->heatmap_threshold ?? 25) / 100));
+        $heatFrames = 0;
 
         foreach ($frames as $i => $frame) {
             $ts = $seg->start_ts + ($n > 0 ? $i * $seg->duration / $n : 0);
@@ -113,6 +114,7 @@ class Motion
                 continue; // the whole picture changed: IR switch, lights, camera re-exposure
             }
             if ($heat !== null) {
+                $heatFrames++;
                 foreach ($cellHits as $c => $h) {
                     if ($h >= $heatMin && $heat[$c] < 255) {
                         $heat[$c]++;
@@ -140,20 +142,23 @@ class Motion
             'motion_checked' => true,
             'motion_peak' => $cam->motion_enabled ? round($peakSeg, 2) : null,
             'heat' => $heat !== null ? gzcompress(pack('C*', ...$heat), 6) : null,
+            'heat_frames' => $heat !== null ? $heatFrames : null,
         ])->save();
     }
 
     /**
      * Heat map of a camera over [from, to): per cell, how many key frames had motion.
-     * @return array{counts: int[], max: int, segments: int}
+     * frames = number of key-frame comparisons, so a cell's share of time with motion = count / frames.
+     * @return array{counts: int[], max: int, segments: int, frames: int}
      */
     public static function heatmap(int $cameraId, int $from, int $to): array
     {
         $acc = array_fill(0, self::GRID_W * self::GRID_H, 0);
         $n = 0;
+        $frames = 0;
         Segment::where('camera_id', $cameraId)->where('start_ts', '>=', $from - 600)->where('start_ts', '<', $to)
-            ->whereNotNull('heat')->select(['id', 'start_ts', 'duration', 'heat'])
-            ->chunkById(2000, function ($segs) use (&$acc, &$n, $from) {
+            ->whereNotNull('heat')->select(['id', 'start_ts', 'duration', 'heat', 'heat_frames'])
+            ->chunkById(2000, function ($segs) use (&$acc, &$n, &$frames, $from) {
                 foreach ($segs as $s) {
                     if ($s->start_ts + $s->duration <= $from) {
                         continue;
@@ -163,13 +168,17 @@ class Motion
                         continue;
                     }
                     $i = 0;
+                    $segMax = 0;
                     foreach (unpack('C*', $raw) as $v) {
                         $acc[$i++] += $v;
+                        $segMax = max($segMax, $v);
                     }
+                    // older rows have no frame count: assume one key frame per second
+                    $frames += $s->heat_frames ?? max($segMax, (int) round($s->duration));
                     $n++;
                 }
             });
-        return ['counts' => $acc, 'max' => max($acc), 'segments' => $n];
+        return ['counts' => $acc, 'max' => max($acc), 'segments' => $n, 'frames' => $frames];
     }
 
     /** % of the zone's pixels that changed. */

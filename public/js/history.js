@@ -13,6 +13,7 @@
     let lastTick = performance.now();
     let mark = {in: null, out: null};
     let waitTimer = null;
+    const NOISY_SHARE = 0.5; // heat map: a cell with motion in > 50% of key frames is "noise"
     let motion = [];           // all events of shown cameras: {cam, s, e, peak} in ms, sorted by start
 
     // ---------- inputs ----------
@@ -173,12 +174,20 @@
                 canvas.className = 'heat';
                 this.el.querySelector('.player').appendChild(canvas);
                 this.heat = {canvas, d};
-                info.textContent = d.max ? `макс. ${d.max} сраб.` : 'движения нет';
+                // cells with motion in more than half of all key frames (clock digits, flags, trees)
+                // are painted hottest but do not take part in the colour scale
+                d.noisy = d.counts.map((v) => d.frames > 0 && v > d.frames * NOISY_SHARE);
+                d.scale = Math.max(0, ...d.counts.filter((v, i) => !d.noisy[i]));
+                const nNoisy = d.noisy.filter(Boolean).length;
+                info.textContent = d.max ? `макс. ${d.scale} сраб.` + (nNoisy ? `, шумных клеток ${nNoisy}` : '') : 'движения нет';
                 if (!d.segments) info.textContent = 'нет данных';
                 canvas.addEventListener('mousemove', (e) => {
                     const r = this.contentRect(), b = canvas.getBoundingClientRect();
                     const x = Math.floor((e.clientX - b.left - r.x) / r.w * d.w), y = Math.floor((e.clientY - b.top - r.y) / r.h * d.h);
-                    canvas.title = (x >= 0 && x < d.w && y >= 0 && y < d.h) ? `Движение в клетке: ${d.counts[y * d.w + x]} раз` : '';
+                    const i = y * d.w + x;
+                    canvas.title = (x >= 0 && x < d.w && y >= 0 && y < d.h)
+                        ? `Движение в клетке: ${d.counts[i]} раз` + (d.frames ? ` (${Math.round(d.counts[i] * 100 / d.frames)}% времени)` : '') + (d.noisy[i] ? ' — меняется почти всегда, в шкале не учитывается' : '')
+                        : '';
                 });
                 this.drawHeat();
             } catch (e) { info.textContent = 'ошибка'; btn.classList.remove('on'); }
@@ -198,12 +207,13 @@
             const c = canvas.getContext('2d');
             c.setTransform(dpr, 0, 0, dpr, 0, 0);
             if (!d.max) return;
+            // (d.scale = max over non-noisy cells)
             const small = document.createElement('canvas');
             small.width = d.w; small.height = d.h;
             const sc = small.getContext('2d'), img = sc.createImageData(d.w, d.h);
             const stops = [[0, 0, 255], [0, 255, 255], [0, 255, 0], [255, 255, 0], [255, 0, 0]];
             d.counts.forEach((v, i) => {
-                const t = Math.sqrt(v / d.max), p = t * 4, k = Math.min(3, Math.floor(p)), f = p - k;
+                const t = d.noisy[i] || !d.scale ? (v ? 1 : 0) : Math.min(1, Math.sqrt(v / d.scale)), p = t * 4, k = Math.min(3, Math.floor(p)), f = p - k;
                 for (let ch = 0; ch < 3; ch++) img.data[i * 4 + ch] = Math.round(stops[k][ch] + (stops[k + 1][ch] - stops[k][ch]) * f);
                 img.data[i * 4 + 3] = v ? Math.round(70 + 110 * t) : 0;
             });
